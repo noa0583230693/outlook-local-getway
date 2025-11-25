@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Outlook Draft Creator</title>
+  <link rel="stylesheet" href="index.css" />
+</head>
+
+<body>
+  <script src="config.js"></script>
+
+  <h2>Create Outlook Drafts</h2>
+
+  <label>Recipients (comma separated)</label>
+  <input id="recipients" class="box" type="text" />
+
+  <label>Subject</label>
+  <input id="subject" class="box" type="text" />
+
+  <label>Message Body (HTML)</label>
+  <textarea id="body" class="box" rows="6"></textarea>
+
+  <label>Attachment</label>
+  <input id="file" type="file" />
+
+  <br><br>
+  <button id="sendBtn">Open Drafts</button>
+
+  <div id="status"></div>
+
+<script>
+const AGENT_URL = "http://127.0.0.1:5001/open-mail";
+const secret = window.AGENT_SECRET;
+
+// Convert file to Base64
+async function fileToBase64(file) {
+    return new Promise((resolve) => {
+        if (!file) return resolve(null);
+        const r = new FileReader();
+        r.onload = () => resolve(r.result.split(",")[1]);
+        r.readAsDataURL(file);
+    });
+}
+
+document.getElementById("sendBtn").addEventListener("click", async () => {
+    const status = document.getElementById("status");
+    status.style.color = "black";
+    status.textContent = "Processing...";
+
+    const recipients = document.getElementById("recipients").value
+        .split(",")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+    const subject = document.getElementById("subject").value;
+    const body = document.getElementById("body").value;
+    const file = document.getElementById("file").files[0];
+
+    const attachment_base64 = await fileToBase64(file);
+
+    const payload = {
+        secret: secret,
+        subject,
+        body,
+        recipients,
+        attachment_name: file ? file.name : null,
+        attachment_base64
+    };
+
+    try {
+        const res = await fetch(AGENT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.ok) {
+            status.style.color = "green";
+            status.textContent = "Drafts opened successfully!";
+        } else {
+            status.style.color = "red";
+            status.textContent = "Error: " + data.error;
+        }
+
+    } catch (e) {
+        status.style.color = "red";
+        status.textContent = "Cannot connect to local Agent";
+        console.error(e);
+    }
+});
+</script>
+
+</body>
+</html>
